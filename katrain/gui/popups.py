@@ -981,6 +981,38 @@ class GeneratePuzzlePopup(BoxLayout):
     katrain = ObjectProperty(None)
     popup = ObjectProperty(None)
     button = ObjectProperty(None)
+    score_threshold = NumericProperty(1.0)
+    candidate_count_label = StringProperty("Selected candidate moves: 0")
+
+    def on_katrain(self, *_args):
+        self.update_candidate_count_label()
+
+    def on_score_threshold(self, *_args):
+        self.update_candidate_count_label()
+
+    def update_candidate_count_label(self):
+        if self.katrain is None:
+            self.candidate_count_label = "Selected candidate moves: 0"
+            return
+
+        game = self.katrain.game
+        node = game.current_node
+
+        if not node.analysis_exists:
+            self.candidate_count_label = "Selected candidate moves: 0"
+            return
+
+        correct_candidates = [
+            c for c in node.candidate_moves
+            if c["move"].lower() != "pass"
+            and c.get("relativePointsLost", 999) <= self.score_threshold
+        ]
+
+        if not correct_candidates and node.candidate_moves:
+            self.candidate_count_label = "Selected candidate moves: 1"
+            return
+
+        self.candidate_count_label = f"Selected candidate moves: {len(correct_candidates)}"
 
     def generate_puzzle(self):
         game = self.katrain.game
@@ -991,10 +1023,11 @@ class GeneratePuzzlePopup(BoxLayout):
             print("No analysis on current node")
             return
 
-        # Equivalent to "Change in Score >= -1"
+        # Treat moves within the selected score threshold as correct candidates
         correct_candidates = [
             c for c in node.candidate_moves
-            if c.get("relativePointsLost", 999) <= 1.0
+            if c["move"].lower() != "pass"
+            and c.get("relativePointsLost", 999) <= self.score_threshold
         ]
 
         print("correct candidates:", [c["move"] for c in correct_candidates])

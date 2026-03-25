@@ -1092,6 +1092,35 @@
         valign: 'middle'
         text_size: self.size
 
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: dp(90)
+        spacing: dp(6)
+
+        Label:
+            text: f'Correct threshold (Change in Score): -{root.score_threshold:.1f} or better'
+            size_hint_y: None
+            height: dp(30)
+            halign: 'center'
+            valign: 'middle'
+            text_size: self.size
+
+        Slider:
+            min: 0.0
+            max: 5.0
+            step: 0.1
+            value: root.score_threshold
+            on_value: root.score_threshold = self.value
+
+        Label:
+            text: root.candidate_count_label
+            size_hint_y: None
+            height: dp(30)
+            halign: 'center'
+            valign: 'middle'
+            text_size: self.size
+
     AnchorLayout:
         anchor_x: 'center'
         anchor_y: 'center'
