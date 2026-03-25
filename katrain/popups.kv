@@ -1078,3 +1078,32 @@
     BoxLayout:
         id: stats
         size_hint_y: 10
+
+<GeneratePuzzlePopup>:
+    orientation: 'vertical'
+    spacing: CP_SPACING
+    padding: CP_PADDING
+    button: button
+
+    Label:
+        text: 'Generate puzzle from current position'
+        size_hint_y: 0.6
+        halign: 'center'
+        valign: 'middle'
+        text_size: self.size
+
+    AnchorLayout:
+        anchor_x: 'center'
+        anchor_y: 'center'
+        size_hint_y: None
+        height: dp(80)
+
+        SizedRectangleButton:
+            id: button
+            text: 'Generate'
+            size_hint: None, None
+            width: dp(180)
+            height: dp(50)
+            on_release:
+                root.generate_puzzle()
+                root.popup.dismiss()

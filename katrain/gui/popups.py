@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 import urllib3
 from kivy.clock import Clock
+from kivy.core.clipboard import Clipboard
 from kivy.metrics import dp
 from kivy.properties import BooleanProperty, ListProperty, NumericProperty, ObjectProperty, StringProperty
 from kivy.uix.anchorlayout import AnchorLayout
@@ -43,6 +44,7 @@ from katrain.core.engine import KataGoEngine
 from katrain.core.lang import i18n, rank_label
 from katrain.core.sgf_parser import Move
 from katrain.core.utils import PATHS, find_package_resource, evaluation_class
+from katrain.core.game_node import GameNode
 from katrain.gui.kivyutils import (
     BackgroundMixin,
     I18NSpinner,
@@ -974,3 +976,88 @@ class GameReportPopup(BoxLayout):
         # if not done analyzing, check again in 1s
         if not self.katrain.engine.is_idle():
             Clock.schedule_once(self._refresh, 1)
+
+class GeneratePuzzlePopup(BoxLayout):
+    katrain = ObjectProperty(None)
+    popup = ObjectProperty(None)
+    button = ObjectProperty(None)
+
+    def generate_puzzle(self):
+        game = self.katrain.game
+        node = game.current_node
+        board_size = game.board_size
+
+        if not node.analysis_exists:
+            print("No analysis on current node")
+            return
+
+        # Equivalent to "Change in Score >= -1"
+        correct_candidates = [
+            c for c in node.candidate_moves
+            if c.get("relativePointsLost", 999) <= 1.0
+        ]
+
+        print("correct candidates:", [c["move"] for c in correct_candidates])
+
+        # Create a root node that represents the current board position
+        root = GameNode(properties={
+            "GM": 1,
+            "FF": 4,
+            "CA": "UTF-8",
+            "AP": "KaTrain:GeneratePuzzle",
+            "SZ": f"{board_size[0]}:{board_size[1]}" if board_size[0] != board_size[1] else str(board_size[0]),
+            "KM": game.komi,
+            "RU": game.root.get_property("RU", "japanese"),
+            "PL": node.next_player,
+        })
+
+
+        # Preserve selected root properties from the original SGF if present
+        for prop in [
+            "DT",
+            "PC",
+            "GN",
+            "PB",
+            "PW",
+            "BR",
+            "WR",
+            "EV",
+            "RO",
+            "SO",
+            "RE",
+            "US",
+            "HA",
+            "TM",
+            "KM",
+            "RU",
+            "SZ",
+        ]:
+            value = game.root.get_property(prop, None)
+            if value is not None:
+                root.set_property(prop, value)
+
+        black_stones = [m.sgf(board_size) for m in game.stones if m.player == "B"]
+        white_stones = [m.sgf(board_size) for m in game.stones if m.player == "W"]
+
+        if black_stones:
+            root.set_property("AB", black_stones)
+        if white_stones:
+            root.set_property("AW", white_stones)
+
+        # Add each accepted move as a CORRECT variation
+        for cand in correct_candidates:
+            move = Move.from_gtp(cand["move"], player=node.next_player)
+            child = GameNode(parent=root, move=move)
+            child.set_property(
+                "C",
+                f"CORRECT move={cand['move']} relativePointsLost={cand.get('relativePointsLost', 0):.2f}",
+            )
+
+        sgf_text = root.sgf()
+        Clipboard.copy(sgf_text)
+
+        print("=== Copied SGF ===")
+        print(sgf_text)
+
+    def on_submit(self):
+        self.button.trigger_action(duration=0)
